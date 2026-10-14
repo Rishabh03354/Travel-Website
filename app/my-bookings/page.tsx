@@ -3,6 +3,17 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import {
+  FaSuitcaseRolling,
+  FaCalendarAlt,
+  FaUser,
+  FaPhoneAlt,
+  FaArrowRight,
+  FaPlusCircle,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaClock
+} from "react-icons/fa";
 
 interface Booking {
   id: string;
@@ -10,12 +21,10 @@ interface Booking {
   price: number;
   date: string;
   status: string;
-  name: string | null;
-  email: string | null;
-  phone: string | null;
-  travelers: number | null;
-  userId: string;
-  createdAt: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  travelers?: number;
 }
 
 export default function MyBookingsPage() {
@@ -24,301 +33,216 @@ export default function MyBookingsPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    async function loadBookings() {
-      try {
-        const userString = localStorage.getItem("user");
-
-        if (!userString) {
-          setError("Please login first.");
-          setLoading(false);
-          return;
-        }
-
-        const user = JSON.parse(userString);
-
-        if (!user.id) {
-          setError("User information not found. Please login again.");
-          setLoading(false);
-          return;
-        }
-
-        const res = await fetch(
-          `/api/my-bookings?userId=${encodeURIComponent(user.id)}`,
-          {
-            cache: "no-store",
-          }
-        );
-
-        const data = await res.json();
-
-        if (!res.ok || !data.success) {
-          setError(data.message || "Unable to load bookings.");
-          setLoading(false);
-          return;
-        }
-
-        setBookings(data.bookings || []);
-      } catch (error) {
-        console.error("MY BOOKINGS FRONTEND ERROR:", error);
-        setError("Something went wrong while loading your bookings.");
-      } finally {
-        setLoading(false);
-      }
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) {
+      setLoading(false);
+      setError("Please log in to view your bookings.");
+      return;
     }
 
-    loadBookings();
+    try {
+      const user = JSON.parse(storedUser);
+      if (!user.id) {
+        setLoading(false);
+        setError("Invalid user session. Please log in again.");
+        return;
+      }
+
+      fetch(`/api/my-bookings?userId=${user.id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.bookings)) {
+            setBookings(data.bookings);
+          } else {
+            setError(data.message || "Failed to fetch bookings.");
+          }
+          setLoading(false);
+        })
+        .catch(() => {
+          setError("Network error while loading your trips.");
+          setLoading(false);
+        });
+    } catch {
+      setError("Session expired. Please log in again.");
+      setLoading(false);
+    }
   }, []);
 
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-gradient-to-br from-cyan-50 via-white to-blue-100 flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center"
-        >
-          <div className="w-16 h-16 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin mx-auto" />
-
-          <p className="mt-5 text-xl font-semibold text-gray-700">
-            Loading your bookings...
-          </p>
-        </motion.div>
-      </main>
-    );
-  }
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "confirmed":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+            <FaCheckCircle className="text-[10px]" /> Confirmed
+          </span>
+        );
+      case "cancelled":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800">
+            <FaTimesCircle className="text-[10px]" /> Cancelled
+          </span>
+        );
+      case "pending":
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
+            <FaClock className="text-[10px]" /> Pending
+          </span>
+        );
+    }
+  };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-cyan-50 via-white to-blue-100 py-16 px-6">
-      <div className="max-w-6xl mx-auto">
-
-        {/* Header */}
+    <div className="min-h-screen bg-slate-50 py-16">
+      <div className="max-w-6xl mx-auto px-6">
+        {/* Top Header */}
         <motion.div
-          initial={{ opacity: 0, y: -30 }}
+          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col md:flex-row justify-between items-center gap-5 mb-12"
+          className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12"
         >
           <div>
-            <p className="text-teal-600 font-semibold mb-2">
-              TRAVELGO
-            </p>
-
-            <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900">
+            <span className="text-teal-600 font-bold text-xs uppercase tracking-widest block mb-1">
+              Your Travel History
+            </span>
+            <h1 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tight">
               My Bookings
             </h1>
-
-            <p className="text-gray-500 mt-3">
-              Manage and view all your trips in one place.
+            <p className="text-gray-500 mt-2 text-sm md:text-base">
+              Track upcoming trips, view itinerary receipts, and check booking status.
             </p>
           </div>
 
           <Link href="/packages">
-            <button className="bg-teal-600 hover:bg-teal-700 text-white px-7 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300">
-              + Book More Trips
+            <button className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold px-6 py-3.5 rounded-2xl shadow-lg shadow-teal-600/20 transition hover:scale-102">
+              <FaPlusCircle />
+              <span>Book Another Trip</span>
             </button>
           </Link>
         </motion.div>
 
-        {/* Error */}
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-red-50 border border-red-200 text-red-600 rounded-2xl p-6 text-center mb-8"
-          >
-            <p className="font-semibold">{error}</p>
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-24">
+            <div className="w-12 h-12 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-500 font-semibold">Loading your bookings...</p>
+          </div>
+        )}
 
+        {/* Error / Not Logged In */}
+        {!loading && error && (
+          <div className="bg-white rounded-3xl p-10 text-center max-w-lg mx-auto border border-gray-100 shadow-xl">
+            <FaSuitcaseRolling className="text-5xl text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-800 mb-2">{error}</h3>
+            <p className="text-gray-500 text-sm mb-6">Log in to sync and access your reservations.</p>
             <Link href="/login">
-              <button className="mt-4 bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded-lg">
-                Login Again
+              <button className="bg-teal-600 text-white font-bold px-8 py-3 rounded-xl hover:bg-teal-700 transition">
+                Log In Now
               </button>
             </Link>
-          </motion.div>
+          </div>
         )}
 
         {/* Empty State */}
-        {!error && bookings.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl shadow-xl p-12 text-center"
-          >
-            <div className="text-6xl mb-5">
-              ✈️
-            </div>
-
-            <h2 className="text-3xl font-bold text-gray-800">
-              No Bookings Found
-            </h2>
-
-            <p className="text-gray-500 mt-3">
-              You haven't booked a trip yet.
+        {!loading && !error && bookings.length === 0 && (
+          <div className="bg-white rounded-3xl p-12 text-center max-w-xl mx-auto border border-gray-100 shadow-xl">
+            <FaSuitcaseRolling className="text-6xl text-teal-300 mx-auto mb-5" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">No Bookings Found</h2>
+            <p className="text-gray-500 text-sm mb-8">
+              You haven&apos;t reserved any trips yet. Discover our top trending destinations and start your adventure!
             </p>
-
             <Link href="/packages">
-              <button className="mt-7 bg-orange-500 hover:bg-orange-600 text-white px-7 py-3 rounded-xl font-semibold">
-                Explore Packages
+              <button className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-bold px-8 py-3.5 rounded-xl shadow-lg shadow-teal-600/20 hover:scale-102 transition">
+                Explore Holiday Packages
               </button>
             </Link>
-          </motion.div>
+          </div>
         )}
 
-        {/* Booking Count */}
-        {bookings.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mb-6"
-          >
-            <span className="bg-white px-5 py-2 rounded-full shadow-sm text-gray-600">
-              {bookings.length}{" "}
-              {bookings.length === 1 ? "Booking" : "Bookings"}
-            </span>
-          </motion.div>
-        )}
+        {/* Bookings List */}
+        {!loading && !error && bookings.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {bookings.map((booking, index) => (
+              <motion.div
+                key={booking.id}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col justify-between"
+              >
+                {/* Card Header */}
+                <div className="bg-gradient-to-r from-teal-800 via-teal-700 to-cyan-800 p-6 text-white flex justify-between items-start">
+                  <div>
+                    <span className="text-[11px] uppercase tracking-wider text-teal-200 font-bold block mb-1">
+                      Confirmed Destination
+                    </span>
+                    <h3 className="text-2xl font-black tracking-tight">{booking.destination}</h3>
+                  </div>
+                  <div>{getStatusBadge(booking.status)}</div>
+                </div>
 
-        {/* Booking Cards */}
-        <div className="grid md:grid-cols-2 gap-8">
-          {bookings.map((booking, index) => (
-            <motion.div
-              key={booking.id}
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.4,
-                delay: index * 0.08,
-              }}
-            >
-              <Link href={`/my-bookings/${booking.id}`}>
-                <div className="group bg-white rounded-3xl shadow-lg hover:shadow-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-2">
+                {/* Card Body */}
+                <div className="p-6 space-y-4 text-sm text-gray-600">
+                  <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-100">
+                    <div>
+                      <span className="text-[11px] text-gray-400 font-bold uppercase block mb-1">
+                        Travel Date
+                      </span>
+                      <div className="flex items-center gap-1.5 font-bold text-gray-900">
+                        <FaCalendarAlt className="text-teal-600" />
+                        <span>{booking.date || "To be confirmed"}</span>
+                      </div>
+                    </div>
 
-                  {/* Top Banner */}
-                  <div className="bg-gradient-to-r from-teal-600 to-cyan-600 p-6 text-white relative overflow-hidden">
-                    <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full" />
-
-                    <div className="relative z-10">
-                      <p className="text-sm text-white/80">
-                        DESTINATION
-                      </p>
-
-                      <h2 className="text-2xl font-bold mt-1">
-                        {booking.destination}
-                      </h2>
+                    <div>
+                      <span className="text-[11px] text-gray-400 font-bold uppercase block mb-1">
+                        Guests
+                      </span>
+                      <div className="flex items-center gap-1.5 font-bold text-gray-900">
+                        <FaUser className="text-teal-600" />
+                        <span>{booking.travelers ? `${booking.travelers} Guests` : "1 Guest"}</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Details */}
-                  <div className="p-7">
-
-                    {/* Price + Status */}
-                    <div className="flex justify-between items-center mb-6">
-
-                      <div>
-                        <p className="text-sm text-gray-400">
-                          Total Price
-                        </p>
-
-                        <p className="text-2xl font-extrabold text-teal-600">
-                          ₹{booking.price.toLocaleString("en-IN")}
-                        </p>
-                      </div>
-
-                      <span
-                        className={`px-4 py-2 rounded-full text-sm font-semibold ${
-                          booking.status === "Confirmed"
-                            ? "bg-green-100 text-green-700"
-                            : booking.status === "Cancelled"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-yellow-100 text-yellow-700"
-                        }`}
-                      >
-                        {booking.status}
-                      </span>
-
+                  {booking.name && (
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-gray-400">Primary Traveler:</span>
+                      <span className="font-semibold text-gray-800">{booking.name}</span>
                     </div>
+                  )}
 
-                    {/* Information Grid */}
-                    <div className="grid grid-cols-2 gap-5">
-
-                      <div>
-                        <p className="text-xs text-gray-400 uppercase">
-                          Travel Date
-                        </p>
-
-                        <p className="font-semibold text-gray-700 mt-1">
-                          📅 {booking.date}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs text-gray-400 uppercase">
-                          Travelers
-                        </p>
-
-                        <p className="font-semibold text-gray-700 mt-1">
-                          👥{" "}
-                          {booking.travelers
-                            ? `${booking.travelers} Traveler${
-                                booking.travelers > 1 ? "s" : ""
-                              }`
-                            : "Not available"}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs text-gray-400 uppercase">
-                          Passenger
-                        </p>
-
-                        <p className="font-semibold text-gray-700 mt-1 truncate">
-                          👤 {booking.name || "Not available"}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs text-gray-400 uppercase">
-                          Phone
-                        </p>
-
-                        <p className="font-semibold text-gray-700 mt-1">
-                          📱 {booking.phone || "Not available"}
-                        </p>
-                      </div>
-
+                  {booking.phone && (
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-gray-400">Contact:</span>
+                      <span className="font-semibold text-gray-800">{booking.phone}</span>
                     </div>
+                  )}
 
-                    {/* Old Booking Notice */}
-                    {!booking.name &&
-                      !booking.email &&
-                      !booking.phone &&
-                      !booking.travelers && (
-                        <div className="mt-6 bg-gray-50 border border-gray-200 rounded-xl p-3">
-                          <p className="text-xs text-gray-500">
-                            This booking was created before traveler
-                            details were added.
-                          </p>
-                        </div>
-                      )}
-
-                    {/* View Details */}
-                    <div className="mt-7 pt-5 border-t flex justify-between items-center">
-                      <span className="text-gray-400 text-sm">
-                        Booking ID:{" "}
-                        {booking.id.slice(-8)}
+                  {/* Pricing and Action */}
+                  <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-[11px] text-gray-400 uppercase tracking-wider block">
+                        Total Amount Paid
                       </span>
-
-                      <span className="text-teal-600 font-bold group-hover:translate-x-1 transition-transform">
-                        View Details →
+                      <span className="text-2xl font-black text-teal-600">
+                        ₹{booking.price ? booking.price.toLocaleString("en-IN") : "0"}
                       </span>
                     </div>
 
+                    <Link href={`/my-bookings/${booking.id}`}>
+                      <button className="flex items-center gap-1.5 text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 px-4 py-2.5 rounded-xl transition">
+                        <span>Receipt & Details</span>
+                        <FaArrowRight className="text-[10px]" />
+                      </button>
+                    </Link>
                   </div>
                 </div>
-              </Link>
-            </motion.div>
-          ))}
-        </div>
-
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
-    </main>
+    </div>
   );
 }
